@@ -73,21 +73,37 @@ export const createCapsule = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { callGatewayJson } = await import("./ai-gateway.server");
 
-    const structured = await callGatewayJson<StructuredCapsule>({
-      model: "google/gemini-2.5-flash",
-      messages: [
-        { role: "system", content: SYSTEM_PROMPT },
-        {
-          role: "user",
-          content: `Source AI: ${data.sourceAi ?? "unknown"}\n\nConversation:\n\n${data.raw}`,
+    const runGateway = (extraSystem?: string) =>
+      callGatewayJson<StructuredCapsule>({
+        model: "google/gemini-2.5-flash",
+        messages: [
+          { role: "system", content: SYSTEM_PROMPT + (extraSystem ? `\n\n${extraSystem}` : "") },
+          {
+            role: "user",
+            content: `Source AI: ${data.sourceAi ?? "unknown"}\n\nConversation:\n\n${data.raw}`,
+          },
+        ],
+        jsonSchema: {
+          name: "capsule",
+          schema: CAPSULE_SCHEMA as unknown as Record<string, unknown>,
         },
-      ],
-      jsonSchema: { name: "capsule", schema: CAPSULE_SCHEMA as unknown as Record<string, unknown> },
-    });
+      });
 
-    const markdown = toMarkdown(structured);
+    let structured = await runGateway();
+    let markdown = toMarkdown(structured);
     const tokensOriginal = estimateTokens(data.raw);
-    const tokensCompressed = estimateTokens(markdown);
+    let tokensCompressed = estimateTokens(markdown);
+
+    // Safety pass: if the capsule ended up larger than the input, force a tighter rewrite.
+    if (tokensCompressed >= tokensOriginal && tokensOriginal > 0) {
+      const target = Math.max(1, Math.floor(tokensOriginal * 0.5));
+      structured = await runGateway(
+        `CRITICAL: Your previous attempt was longer than the source. Rewrite MUCH shorter. Target ~${target} tokens total (roughly ${target * 4} characters of markdown). Keep only the 2-4 most important sections. Bullet points only. No prose.`,
+      );
+      markdown = toMarkdown(structured);
+      tokensCompressed = estimateTokens(markdown);
+    }
+
 
     const { data: row, error } = await context.supabase
       .from("capsules")
