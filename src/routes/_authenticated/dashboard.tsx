@@ -1,4 +1,4 @@
-import { createFileRoute, Link, useServerFn } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useSuspenseQuery, queryOptions } from "@tanstack/react-query";
 import { Suspense } from "react";
 import { listCapsules } from "@/lib/capsules.functions";
