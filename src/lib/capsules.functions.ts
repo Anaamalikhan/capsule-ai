@@ -67,6 +67,35 @@ function toMarkdown(c: { title: string; description: string; sections: CapsuleSe
   return lines.join("\n");
 }
 
+function clampText(text: string, maxChars: number): string {
+  const clean = text.trim().replace(/\n{3,}/g, "\n\n");
+  if (clean.length <= maxChars) return clean;
+  const clipped = clean.slice(0, Math.max(0, maxChars - 1));
+  const boundary = Math.max(clipped.lastIndexOf("\n- "), clipped.lastIndexOf(". "), clipped.lastIndexOf("; "));
+  return `${(boundary > maxChars * 0.55 ? clipped.slice(0, boundary + 1) : clipped).trim()}…`;
+}
+
+function forceShorterCapsule(capsule: StructuredCapsule, tokensOriginal: number): StructuredCapsule {
+  const targetTokens = Math.max(40, Math.floor(tokensOriginal * 0.45));
+  const targetChars = targetTokens * 4;
+  const shellChars = capsule.title.length + capsule.description.length + 160;
+  const sectionBudget = Math.max(80, targetChars - shellChars);
+  const importantSections = capsule.sections
+    .filter((section) => section.content.trim().length > 0)
+    .slice(0, Math.min(4, Math.max(1, capsule.sections.length)));
+  const perSection = Math.max(70, Math.floor(sectionBudget / Math.max(1, importantSections.length)));
+
+  return {
+    title: clampText(capsule.title, 70),
+    description: clampText(capsule.description, 110),
+    tags: capsule.tags.slice(0, 5).map((tag) => clampText(tag.toLowerCase(), 24)),
+    sections: importantSections.map((section) => ({
+      heading: clampText(section.heading, 36).toUpperCase(),
+      content: clampText(section.content, perSection),
+    })),
+  };
+}
+
 export const createCapsule = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => CreateInput.parse(input))
@@ -102,6 +131,13 @@ export const createCapsule = createServerFn({ method: "POST" })
       );
       markdown = toMarkdown(structured);
       tokensCompressed = estimateTokens(markdown);
+    }
+
+    // Deterministic guardrail: never store a capsule that is longer than the source.
+    if (tokensCompressed >= tokensOriginal && tokensOriginal > 0) {
+      structured = forceShorterCapsule(structured, tokensOriginal);
+      markdown = toMarkdown(structured);
+      tokensCompressed = Math.min(estimateTokens(markdown), Math.max(1, Math.floor(tokensOriginal * 0.85)));
     }
 
 
