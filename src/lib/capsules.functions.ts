@@ -76,16 +76,16 @@ function clampText(text: string, maxChars: number): string {
 }
 
 function forceShorterCapsule(capsule: StructuredCapsule, tokensOriginal: number): StructuredCapsule {
-  const targetTokens = Math.max(40, Math.floor(tokensOriginal * 0.45));
+  const targetTokens = Math.max(1, Math.floor(tokensOriginal * 0.45));
   const targetChars = targetTokens * 4;
   const shellChars = capsule.title.length + capsule.description.length + 160;
-  const sectionBudget = Math.max(80, targetChars - shellChars);
+  const sectionBudget = Math.max(40, targetChars - shellChars);
   const importantSections = capsule.sections
     .filter((section) => section.content.trim().length > 0)
     .slice(0, Math.min(4, Math.max(1, capsule.sections.length)));
-  const perSection = Math.max(70, Math.floor(sectionBudget / Math.max(1, importantSections.length)));
+  const perSection = Math.max(40, Math.floor(sectionBudget / Math.max(1, importantSections.length)));
 
-  return {
+  let shortened: StructuredCapsule = {
     title: clampText(capsule.title, 70),
     description: clampText(capsule.description, 110),
     tags: capsule.tags.slice(0, 5).map((tag) => clampText(tag.toLowerCase(), 24)),
@@ -94,6 +94,32 @@ function forceShorterCapsule(capsule: StructuredCapsule, tokensOriginal: number)
       content: clampText(section.content, perSection),
     })),
   };
+
+  if (estimateTokens(toMarkdown(shortened)) >= tokensOriginal) {
+    shortened = {
+      title: clampText(shortened.title, 50),
+      description: clampText(shortened.description, 70),
+      tags: shortened.tags.slice(0, 3),
+      sections: shortened.sections.slice(0, 2).map((section) => ({
+        heading: clampText(section.heading, 24).toUpperCase(),
+        content: clampText(section.content, Math.max(32, Math.floor(tokensOriginal * 1.2))),
+      })),
+    };
+  }
+
+  if (estimateTokens(toMarkdown(shortened)) >= tokensOriginal) {
+    shortened = {
+      title: clampText(shortened.title, 40),
+      description: clampText(shortened.description, 48),
+      tags: shortened.tags.slice(0, 2),
+      sections: shortened.sections.slice(0, 1).map((section) => ({
+        heading: clampText(section.heading, 18).toUpperCase(),
+        content: clampText(section.content, Math.max(24, Math.floor(tokensOriginal * 0.8))),
+      })),
+    };
+  }
+
+  return shortened;
 }
 
 export const createCapsule = createServerFn({ method: "POST" })
@@ -137,7 +163,7 @@ export const createCapsule = createServerFn({ method: "POST" })
     if (tokensCompressed >= tokensOriginal && tokensOriginal > 0) {
       structured = forceShorterCapsule(structured, tokensOriginal);
       markdown = toMarkdown(structured);
-      tokensCompressed = Math.min(estimateTokens(markdown), Math.max(1, Math.floor(tokensOriginal * 0.85)));
+      tokensCompressed = estimateTokens(markdown);
     }
 
 
@@ -186,6 +212,17 @@ export const getCapsule = createServerFn({ method: "GET" })
       .maybeSingle();
     if (error) throw new Error(error.message);
     if (!row) throw new Error("Not found");
+    if (row.tokens_compressed >= row.tokens_original && row.tokens_original > 0) {
+      const structured = forceShorterCapsule(row.structured as unknown as StructuredCapsule, row.tokens_original);
+      const markdown = toMarkdown(structured);
+      const tokensCompressed = estimateTokens(markdown);
+      const { error: updateError } = await context.supabase
+        .from("capsules")
+        .update({ structured: structured as never, markdown, tokens_compressed: tokensCompressed })
+        .eq("id", row.id);
+      if (updateError) throw new Error(updateError.message);
+      return { capsule: { ...row, structured, markdown, tokens_compressed: tokensCompressed } };
+    }
     return { capsule: row };
   });
 
