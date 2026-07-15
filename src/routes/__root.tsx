@@ -77,15 +77,15 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "CapsuleHub — Move your AI conversations anywhere" },
+      { title: "ContextVault.AI — Move your AI conversations anywhere" },
       {
         name: "description",
         content:
-          "CapsuleHub turns any AI conversation into a portable Memory Capsule you can paste into ChatGPT, Claude, Gemini, Cursor, Lovable, and more.",
+          "ContextVault.AI turns any AI conversation into a portable Memory Capsule you can paste into ChatGPT, Claude, Gemini, Cursor, Lovable, and more.",
       },
-      { name: "author", content: "CapsuleHub" },
+      { name: "author", content: "ContextVault.AI" },
       { name: "theme-color", content: "#0b0d14" },
-      { property: "og:title", content: "CapsuleHub — Portable AI memory" },
+      { property: "og:title", content: "ContextVault.AI — Portable AI memory" },
       {
         property: "og:description",
         content:

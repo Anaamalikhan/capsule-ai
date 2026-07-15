@@ -5,10 +5,10 @@ import { SiteNav } from "@/components/site/Nav";
 export const Route = createFileRoute("/extension")({
   head: () => ({
     meta: [
-      { title: "Browser extension — CapsuleHub" },
+      { title: "Browser extension — ContextVault.AI" },
       {
         name: "description",
-        content: "Install the CapsuleHub extension to capture any AI conversation with one click.",
+        content: "Install the ContextVault.AI extension to capture any AI conversation with one click.",
       },
     ],
   }),
@@ -25,7 +25,7 @@ function ExtensionPage() {
             <Puzzle className="h-6 w-6 text-white" />
           </div>
           <h1 className="mt-6 text-4xl font-semibold tracking-tight md:text-5xl">
-            The <span className="text-gradient">CapsuleHub</span> browser extension
+            The <span className="text-gradient">ContextVault.AI</span> browser extension
           </h1>
           <p className="mx-auto mt-4 max-w-xl text-muted-foreground">
             One-click capture from ChatGPT, Claude, Gemini, Grok, Perplexity, Cursor, Lovable

@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/settings")({
-  head: () => ({ meta: [{ title: "Settings — CapsuleHub" }] }),
+  head: () => ({ meta: [{ title: "Settings — ContextVault.AI" }] }),
   component: Settings,
 });
 
@@ -50,7 +50,7 @@ function Settings() {
         <div className="glass rounded-2xl p-6">
           <div className="text-sm font-medium">Theme</div>
           <p className="mt-1 text-xs text-muted-foreground">
-            CapsuleHub uses a permanent dark theme optimized for long reading sessions.
+            ContextVault.AI uses a permanent dark theme optimized for long reading sessions.
           </p>
         </div>
       </div>

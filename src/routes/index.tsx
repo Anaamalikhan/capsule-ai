@@ -41,7 +41,7 @@ function Landing() {
             <span className="text-gradient">anywhere</span>.
           </h1>
           <p className="mx-auto mt-6 max-w-2xl text-lg text-muted-foreground md:text-xl">
-            CapsuleHub turns any AI chat into a portable Memory Capsule. Paste it into
+            ContextVault.AI turns any AI chat into a portable Memory Capsule. Paste it into
             ChatGPT, Claude, Gemini, Cursor, or Lovable and pick up exactly where you left off.
           </p>
           <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
@@ -136,7 +136,7 @@ function Landing() {
         <div className="mt-12 grid gap-4 md:grid-cols-4">
           {[
             { n: "01", t: "Capture", d: "Open any AI chat and click Create Capsule.", i: FileText },
-            { n: "02", t: "Compress", d: "CapsuleHub generates a structured memory.", i: Cpu },
+            { n: "02", t: "Compress", d: "ContextVault.AI generates a structured memory.", i: Cpu },
             { n: "03", t: "Paste", d: "Drop the Capsule into another AI.", i: Copy },
             { n: "04", t: "Continue", d: "Keep working with full context intact.", i: ArrowRight },
           ].map((s) => (
@@ -163,7 +163,7 @@ function Landing() {
             },
             {
               q: "Do I need the extension?",
-              a: "No — you can paste conversations directly into CapsuleHub. The extension is a shortcut for one-click capture.",
+              a: "No — you can paste conversations directly into ContextVault.AI. The extension is a shortcut for one-click capture.",
             },
             {
               q: "Is my data private?",
@@ -209,7 +209,7 @@ function Landing() {
         <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 px-6 py-10 md:flex-row">
           <Logo />
           <p className="text-xs text-muted-foreground">
-            © {new Date().getFullYear()} CapsuleHub. Portable memory for every AI.
+            © {new Date().getFullYear()} ContextVault.AI. Portable memory for every AI.
           </p>
         </div>
       </footer>

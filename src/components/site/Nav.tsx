@@ -7,7 +7,7 @@ export function Logo({ className }: { className?: string }) {
       <div className="relative flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-brand ring-brand">
         <Sparkles className="h-4 w-4 text-white" />
       </div>
-      <span className="text-lg font-semibold tracking-tight">CapsuleHub</span>
+      <span className="text-lg font-semibold tracking-tight">ContextVault.AI</span>
     </Link>
   );
 }

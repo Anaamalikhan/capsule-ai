@@ -6,7 +6,7 @@ import { Loader2, Sparkles, Upload } from "lucide-react";
 import { createCapsule } from "@/lib/capsules.functions";
 
 export const Route = createFileRoute("/_authenticated/create")({
-  head: () => ({ meta: [{ title: "New Capsule — CapsuleHub" }] }),
+  head: () => ({ meta: [{ title: "New Capsule — ContextVault.AI" }] }),
   component: CreatePage,
 });
 
@@ -48,7 +48,7 @@ function CreatePage() {
     <div className="mx-auto max-w-4xl px-6 py-10">
       <h1 className="text-3xl font-semibold tracking-tight">Create a Capsule</h1>
       <p className="mt-1 text-sm text-muted-foreground">
-        Paste a conversation, upload a transcript, or drop in JSON. CapsuleHub will
+        Paste a conversation, upload a transcript, or drop in JSON. ContextVault.AI will
         compress it into a portable structured memory.
       </p>
 
