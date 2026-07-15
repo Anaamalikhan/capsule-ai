@@ -9,8 +9,8 @@ import { Loader2 } from "lucide-react";
 export const Route = createFileRoute("/auth")({
   head: () => ({
     meta: [
-      { title: "Sign in — CapsuleHub" },
-      { name: "description", content: "Sign in or create your CapsuleHub account." },
+      { title: "Sign in — ContextVault.AI" },
+      { name: "description", content: "Sign in or create your ContextVault.AI account." },
     ],
   }),
   component: AuthPage,

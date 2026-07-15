@@ -26,7 +26,7 @@ const opts = (id: string) =>
   });
 
 export const Route = createFileRoute("/_authenticated/capsules/$id")({
-  head: () => ({ meta: [{ title: "Capsule — CapsuleHub" }] }),
+  head: () => ({ meta: [{ title: "Capsule — ContextVault.AI" }] }),
   component: CapsuleView,
 });
 

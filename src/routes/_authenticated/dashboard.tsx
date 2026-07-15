@@ -23,7 +23,7 @@ const capsulesQuery = queryOptions({
 });
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
-  head: () => ({ meta: [{ title: "Your Capsules — CapsuleHub" }] }),
+  head: () => ({ meta: [{ title: "Your Capsules — ContextVault.AI" }] }),
   component: Dashboard,
 });
 
@@ -353,7 +353,7 @@ function EmptyState() {
       </div>
       <h2 className="text-xl font-semibold">No capsules yet</h2>
       <p className="mx-auto mt-2 max-w-sm text-sm text-muted-foreground">
-        Paste a conversation and CapsuleHub will compress it into portable memory.
+        Paste a conversation and ContextVault.AI will compress it into portable memory.
       </p>
       <Link
         to="/create"

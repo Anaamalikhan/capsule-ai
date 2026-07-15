@@ -2,14 +2,18 @@ import { createFileRoute } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { Moon, Sun, MonitorSmartphone } from "lucide-react";
+import { useTheme, type ThemeMode } from "@/lib/theme";
 
 export const Route = createFileRoute("/_authenticated/settings")({
-  head: () => ({ meta: [{ title: "Settings — CapsuleHub" }] }),
+  head: () => ({ meta: [{ title: "Settings — ContextVault.AI" }] }),
   component: Settings,
 });
 
 function Settings() {
   const [email, setEmail] = useState("");
+  const { mode, resolved, setMode } = useTheme();
+
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => setEmail(data.user?.email ?? ""));
   }, []);
@@ -22,6 +26,12 @@ function Settings() {
     if (error) toast.error(error.message);
     else toast.success("Password reset email sent");
   };
+
+  const options: { value: ThemeMode; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
+    { value: "light", label: "Light", icon: Sun },
+    { value: "dark", label: "Dark", icon: Moon },
+    { value: "auto", label: "Auto", icon: MonitorSmartphone },
+  ];
 
   return (
     <div className="mx-auto max-w-2xl px-6 py-10">
@@ -48,12 +58,38 @@ function Settings() {
         </div>
 
         <div className="glass rounded-2xl p-6">
-          <div className="text-sm font-medium">Theme</div>
+          <div className="flex items-center justify-between">
+            <div className="text-sm font-medium">Theme</div>
+            <div className="text-xs text-muted-foreground">
+              Currently {mode === "auto" ? `Auto (${resolved})` : resolved}
+            </div>
+          </div>
           <p className="mt-1 text-xs text-muted-foreground">
-            CapsuleHub uses a permanent dark theme optimized for long reading sessions.
+            Choose Light, Dark, or Auto to follow your system.
           </p>
+          <div className="mt-4 grid grid-cols-3 gap-2">
+            {options.map(({ value, label, icon: Icon }) => {
+              const active = mode === value;
+              return (
+                <button
+                  key={value}
+                  onClick={() => setMode(value)}
+                  className={`flex items-center justify-center gap-2 rounded-xl border px-3 py-2 text-sm transition ${
+                    active
+                      ? "border-transparent bg-gradient-brand text-white ring-brand"
+                      : "border-white/10 bg-white/5 text-foreground hover:bg-white/10"
+                  }`}
+                  aria-pressed={active}
+                >
+                  <Icon className="h-4 w-4" />
+                  {label}
+                </button>
+              );
+            })}
+          </div>
         </div>
       </div>
     </div>
   );
 }
+
