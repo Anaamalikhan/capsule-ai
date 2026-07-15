@@ -160,17 +160,17 @@ html.light {
 }
 
 @utility glass {
-  background: oklch(1 0 0 / 0.04);
+  background: var(--glass-bg);
   backdrop-filter: blur(20px) saturate(160%);
   -webkit-backdrop-filter: blur(20px) saturate(160%);
-  border: 1px solid oklch(1 0 0 / 0.08);
+  border: 1px solid var(--glass-border);
 }
 
 @utility glass-strong {
-  background: oklch(1 0 0 / 0.07);
+  background: var(--glass-bg-strong);
   backdrop-filter: blur(28px) saturate(180%);
   -webkit-backdrop-filter: blur(28px) saturate(180%);
-  border: 1px solid oklch(1 0 0 / 0.1);
+  border: 1px solid var(--glass-border-strong);
 }
 
 @utility text-gradient {
@@ -196,18 +196,19 @@ html.light {
 
 @utility ring-brand {
   box-shadow:
-    0 0 0 1px oklch(1 0 0 / 0.08),
+    0 0 0 1px var(--glass-border),
     0 20px 60px -20px oklch(0.68 0.22 295 / 0.35),
     0 8px 30px -10px oklch(0.68 0.18 245 / 0.25);
 }
 
 @utility grid-bg {
   background-image:
-    linear-gradient(oklch(1 0 0 / 0.04) 1px, transparent 1px),
-    linear-gradient(90deg, oklch(1 0 0 / 0.04) 1px, transparent 1px);
+    linear-gradient(var(--grid-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
   background-size: 44px 44px;
   mask-image: radial-gradient(ellipse 60% 50% at 50% 40%, black, transparent 80%);
 }
+
 
 @keyframes float-y {
   0%, 100% { transform: translateY(0); }
