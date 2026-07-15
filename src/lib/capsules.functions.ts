@@ -248,3 +248,105 @@ export const toggleCapsuleShare = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     return { ok: true };
   });
+
+const MergeInput = z.object({
+  ids: z.array(z.string().uuid()).min(2).max(6),
+});
+
+const MERGE_SYSTEM_PROMPT = `You are ContextVault.AI. You are merging multiple Conversation Capsules into ONE unified Capsule that preserves the essential context from every input.
+
+RULES:
+- Deduplicate overlapping facts, decisions, and files. Keep the most recent / most specific version when they conflict.
+- Merge related sections under a single heading (e.g. combine two DECISIONS MADE sections into one).
+- Preserve every unique concrete detail: file names, function names, DB tables, decisions, rejected ideas, next tasks.
+- Section order: PROJECT, OBJECTIVE, CURRENT STATUS, ARCHITECTURE, DECISIONS MADE, REJECTED IDEAS, FILES CREATED, FUNCTIONS, DATABASE, PROMPTS, USER PREFERENCES, IMPORTANT CONTEXT, OPEN QUESTIONS, NEXT TASK, DEPENDENCIES, KNOWN BUGS, FUTURE IDEAS. Omit sections with no substance.
+- Terse bullet points, no prose, no meta commentary.
+- Title: short unified project/topic name. Description: one sentence, max 20 words.
+- Tags: 3-6 short lowercase strings covering the merged scope.
+- The merged Capsule MUST be shorter than the concatenated inputs.`;
+
+export const mergeCapsules = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => MergeInput.parse(input))
+  .handler(async ({ data, context }) => {
+    const { callGatewayJson } = await import("./ai-gateway.server");
+
+    const { data: rows, error } = await context.supabase
+      .from("capsules")
+      .select("id,title,description,source_ai,markdown,tags,tokens_original")
+      .in("id", data.ids);
+    if (error) throw new Error(error.message);
+    if (!rows || rows.length < 2) throw new Error("Select at least 2 capsules to merge");
+
+    const ordered = data.ids
+      .map((id) => rows.find((r) => r.id === id))
+      .filter((r): r is NonNullable<typeof r> => Boolean(r));
+
+    const combined = ordered
+      .map(
+        (r, i) =>
+          `===== CAPSULE ${i + 1}: ${r.title} =====\nSource: ${r.source_ai ?? "unknown"}\nTags: ${(r.tags ?? []).join(", ")}\n\n${r.markdown}`,
+      )
+      .join("\n\n");
+
+    const sourcesSummary =
+      ordered.map((r) => r.source_ai).filter(Boolean).join(", ") || "merged";
+    const tokensOriginalSum = ordered.reduce(
+      (sum, r) => sum + (r.tokens_original ?? 0),
+      0,
+    );
+
+    let structured = await callGatewayJson<StructuredCapsule>({
+      model: "google/gemini-2.5-flash",
+      messages: [
+        { role: "system", content: MERGE_SYSTEM_PROMPT },
+        {
+          role: "user",
+          content: `Merge the following ${ordered.length} capsules into one unified capsule.\n\n${combined}`,
+        },
+      ],
+      jsonSchema: {
+        name: "capsule",
+        schema: CAPSULE_SCHEMA as unknown as Record<string, unknown>,
+      },
+    });
+
+    let markdown = toMarkdown(structured);
+    let tokensCompressed = estimateTokens(markdown);
+    const referenceTokens = Math.max(tokensOriginalSum, estimateTokens(combined));
+
+    if (tokensCompressed >= referenceTokens && referenceTokens > 0) {
+      structured = forceShorterCapsule(structured, referenceTokens);
+      markdown = toMarkdown(structured);
+      tokensCompressed = estimateTokens(markdown);
+    }
+
+    const mergedTags = Array.from(
+      new Set(
+        [
+          ...(structured.tags ?? []),
+          ...ordered.flatMap((r) => r.tags ?? []),
+        ].map((t) => t.toLowerCase()),
+      ),
+    ).slice(0, 8);
+
+    const { data: inserted, error: insertError } = await context.supabase
+      .from("capsules")
+      .insert({
+        user_id: context.userId,
+        title: structured.title.slice(0, 200),
+        description: structured.description.slice(0, 500),
+        source_ai: sourcesSummary.slice(0, 64),
+        raw_content: combined,
+        structured: structured as never,
+        markdown,
+        tokens_original: referenceTokens,
+        tokens_compressed: tokensCompressed,
+        tags: mergedTags,
+      })
+      .select("id")
+      .single();
+
+    if (insertError) throw new Error(insertError.message);
+    return { id: inserted.id };
+  });

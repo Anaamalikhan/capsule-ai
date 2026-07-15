@@ -1,7 +1,9 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
-import { useSuspenseQuery, queryOptions } from "@tanstack/react-query";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { useSuspenseQuery, queryOptions, useQueryClient } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
 import { Suspense, useMemo, useState } from "react";
-import { listCapsules } from "@/lib/capsules.functions";
+import { toast } from "sonner";
+import { listCapsules, mergeCapsules } from "@/lib/capsules.functions";
 import {
   Plus,
   Sparkles,
@@ -15,6 +17,8 @@ import {
   Lock,
   Globe,
   ChevronDown,
+  X,
+  Check,
 } from "lucide-react";
 
 const capsulesQuery = queryOptions({
@@ -47,6 +51,13 @@ function DashboardInner() {
   const [filter, setFilter] = useState<FilterMode>("all");
   const [filterOpen, setFilterOpen] = useState(false);
   const [view, setView] = useState<ViewMode>("grid");
+  const [selectMode, setSelectMode] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [merging, setMerging] = useState(false);
+
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const mergeFn = useServerFn(mergeCapsules);
 
   const filtered = useMemo(() => {
     const q = submittedQuery.trim().toLowerCase();
@@ -59,6 +70,46 @@ function DashboardInner() {
     });
   }, [data.capsules, submittedQuery, filter]);
 
+  const toggleSelect = (id: string) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else if (next.size < 6) next.add(id);
+      else toast.error("You can merge up to 6 capsules at a time.");
+      return next;
+    });
+  };
+
+  const enterSelectMode = () => {
+    setSelectMode(true);
+    setSelected(new Set());
+  };
+
+  const cancelSelect = () => {
+    setSelectMode(false);
+    setSelected(new Set());
+  };
+
+  const runMerge = async () => {
+    if (selected.size < 2) {
+      toast.error("Select at least 2 capsules to merge.");
+      return;
+    }
+    setMerging(true);
+    try {
+      const res = await mergeFn({ data: { ids: Array.from(selected) } });
+      toast.success("Capsules merged into a new capsule.");
+      await queryClient.invalidateQueries({ queryKey: ["capsules"] });
+      setSelectMode(false);
+      setSelected(new Set());
+      navigate({ to: "/capsules/$id", params: { id: res.id } });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to merge capsules.");
+    } finally {
+      setMerging(false);
+    }
+  };
+
   return (
     <>
       {/* Header */}
@@ -66,7 +117,7 @@ function DashboardInner() {
         <div>
           <div className="flex items-center gap-3">
             <h1 className="bg-gradient-brand bg-clip-text text-4xl font-bold tracking-tight text-transparent">
-              Capsule Hub
+              ContextVault.AI
             </h1>
             <span className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-white/15 text-xs text-muted-foreground">
               ?
@@ -170,16 +221,45 @@ function DashboardInner() {
             </button>
           </div>
 
-          <button
-            type="button"
-            className="relative inline-flex items-center gap-2 rounded-xl bg-gradient-brand px-4 py-2.5 text-sm font-medium text-white ring-brand"
-          >
-            <GitMerge className="h-4 w-4" />
-            Merge Capsules
-            <span className="absolute -right-1 -top-2 rounded bg-white px-1.5 py-0.5 text-[9px] font-bold text-black">
-              BETA
-            </span>
-          </button>
+          {!selectMode ? (
+            <button
+              type="button"
+              onClick={enterSelectMode}
+              disabled={data.capsules.length < 2}
+              className="relative inline-flex items-center gap-2 rounded-xl bg-gradient-brand px-4 py-2.5 text-sm font-medium text-white ring-brand disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <GitMerge className="h-4 w-4" />
+              Merge Capsules
+              <span className="absolute -right-1 -top-2 rounded bg-white px-1.5 py-0.5 text-[9px] font-bold text-black">
+                BETA
+              </span>
+            </button>
+          ) : (
+            <>
+              <button
+                type="button"
+                onClick={cancelSelect}
+                disabled={merging}
+                className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-medium hover:bg-white/10 disabled:opacity-50"
+              >
+                <X className="h-4 w-4" />
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={runMerge}
+                disabled={merging || selected.size < 2}
+                className="relative inline-flex items-center gap-2 rounded-xl bg-gradient-brand px-4 py-2.5 text-sm font-medium text-white ring-brand disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {merging ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <GitMerge className="h-4 w-4" />
+                )}
+                Merge {selected.size > 0 ? `(${selected.size})` : ""}
+              </button>
+            </>
+          )}
 
           <Link
             to="/create"
@@ -191,6 +271,17 @@ function DashboardInner() {
         </div>
       </div>
 
+      {selectMode && (
+        <div className="glass mt-4 flex items-center justify-between rounded-xl border border-primary/30 bg-primary/5 px-4 py-3 text-sm">
+          <span>
+            Select 2–6 capsules to merge into a single unified capsule.{" "}
+            <span className="text-muted-foreground">
+              Selected: {selected.size}
+            </span>
+          </span>
+        </div>
+      )}
+
       {/* Content */}
       <div className="mt-6">
         {filtered.length === 0 ? (
@@ -200,9 +291,19 @@ function DashboardInner() {
             <NoResults query={submittedQuery} />
           )
         ) : view === "grid" ? (
-          <GridView capsules={filtered} />
+          <GridView
+            capsules={filtered}
+            selectMode={selectMode}
+            selected={selected}
+            onToggle={toggleSelect}
+          />
         ) : (
-          <TableView capsules={filtered} />
+          <TableView
+            capsules={filtered}
+            selectMode={selectMode}
+            selected={selected}
+            onToggle={toggleSelect}
+          />
         )}
       </div>
     </>
@@ -221,53 +322,102 @@ type Capsule = {
   created_at: string;
 };
 
-function GridView({ capsules }: { capsules: Capsule[] }) {
+type SelectionProps = {
+  selectMode: boolean;
+  selected: Set<string>;
+  onToggle: (id: string) => void;
+};
+
+function GridView({
+  capsules,
+  selectMode,
+  selected,
+  onToggle,
+}: { capsules: Capsule[] } & SelectionProps) {
   return (
     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-      {capsules.map((c) => (
-        <Link
-          key={c.id}
-          to="/capsules/$id"
-          params={{ id: c.id }}
-          className="glass group flex flex-col rounded-2xl border border-white/10 p-5 transition-all hover:border-white/20 hover:bg-white/10"
-        >
-          <div className="text-lg font-semibold line-clamp-1">{c.title}</div>
-          <div className="mt-2 inline-flex items-center gap-2 text-xs text-muted-foreground">
-            <Calendar className="h-3.5 w-3.5" />
-            {new Date(c.created_at).toLocaleDateString(undefined, {
-              month: "short",
-              day: "numeric",
-              year: "numeric",
-            })}
-          </div>
+      {capsules.map((c) => {
+        const isSelected = selected.has(c.id);
+        const cardClass = `glass group relative flex flex-col rounded-2xl border p-5 transition-all ${
+          isSelected
+            ? "border-primary bg-primary/10"
+            : "border-white/10 hover:border-white/20 hover:bg-white/10"
+        }`;
 
-          <div className="mt-5 space-y-3 border-t border-white/5 pt-4 text-sm">
-            <Row label="Versions">
-              <span className="rounded-full bg-primary/20 px-2 py-0.5 text-xs font-semibold text-primary">
-                v1
-              </span>
-            </Row>
-            <Row label="Source">
-              <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-white/90 text-[10px] font-bold text-black">
-                {(c.source_ai ?? "u").slice(0, 1).toLowerCase()}
-              </span>
-            </Row>
-            <Row label="Visibility">
-              <span className="inline-flex items-center gap-1 rounded-full bg-white/5 px-2.5 py-1 text-xs">
-                {c.is_public ? (
-                  <>
-                    <Globe className="h-3 w-3" /> Public
-                  </>
-                ) : (
-                  <>
-                    <Lock className="h-3 w-3" /> Private
-                  </>
-                )}
-              </span>
-            </Row>
-          </div>
-        </Link>
-      ))}
+        const inner = (
+          <>
+            {selectMode && (
+              <div
+                className={`absolute right-4 top-4 flex h-6 w-6 items-center justify-center rounded-md border ${
+                  isSelected
+                    ? "border-primary bg-primary text-primary-foreground"
+                    : "border-white/20 bg-white/5"
+                }`}
+              >
+                {isSelected && <Check className="h-4 w-4" />}
+              </div>
+            )}
+            <div className="pr-8 text-lg font-semibold line-clamp-1">{c.title}</div>
+            <div className="mt-2 inline-flex items-center gap-2 text-xs text-muted-foreground">
+              <Calendar className="h-3.5 w-3.5" />
+              {new Date(c.created_at).toLocaleDateString(undefined, {
+                month: "short",
+                day: "numeric",
+                year: "numeric",
+              })}
+            </div>
+
+            <div className="mt-5 space-y-3 border-t border-white/5 pt-4 text-sm">
+              <Row label="Versions">
+                <span className="rounded-full bg-primary/20 px-2 py-0.5 text-xs font-semibold text-primary">
+                  v1
+                </span>
+              </Row>
+              <Row label="Source">
+                <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-white/90 text-[10px] font-bold text-black">
+                  {(c.source_ai ?? "u").slice(0, 1).toLowerCase()}
+                </span>
+              </Row>
+              <Row label="Visibility">
+                <span className="inline-flex items-center gap-1 rounded-full bg-white/5 px-2.5 py-1 text-xs">
+                  {c.is_public ? (
+                    <>
+                      <Globe className="h-3 w-3" /> Public
+                    </>
+                  ) : (
+                    <>
+                      <Lock className="h-3 w-3" /> Private
+                    </>
+                  )}
+                </span>
+              </Row>
+            </div>
+          </>
+        );
+
+        if (selectMode) {
+          return (
+            <button
+              key={c.id}
+              type="button"
+              onClick={() => onToggle(c.id)}
+              className={`${cardClass} text-left`}
+            >
+              {inner}
+            </button>
+          );
+        }
+        return (
+          <Link
+            key={c.id}
+            to="/capsules/$id"
+            params={{ id: c.id }}
+            className={cardClass}
+          >
+            {inner}
+          </Link>
+        );
+      })}
     </div>
   );
 }
@@ -281,12 +431,18 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
   );
 }
 
-function TableView({ capsules }: { capsules: Capsule[] }) {
+function TableView({
+  capsules,
+  selectMode,
+  selected,
+  onToggle,
+}: { capsules: Capsule[] } & SelectionProps) {
   return (
     <div className="glass overflow-hidden rounded-2xl border border-white/10">
       <table className="w-full text-sm">
         <thead className="bg-white/5 text-left text-xs uppercase tracking-wide text-muted-foreground">
           <tr>
+            {selectMode && <th className="w-10 px-4 py-3" />}
             <th className="px-4 py-3 font-medium">Title</th>
             <th className="px-4 py-3 font-medium">Source</th>
             <th className="px-4 py-3 font-medium">Created</th>
@@ -295,42 +451,65 @@ function TableView({ capsules }: { capsules: Capsule[] }) {
           </tr>
         </thead>
         <tbody>
-          {capsules.map((c) => (
-            <tr
-              key={c.id}
-              className="border-t border-white/5 transition-colors hover:bg-white/5"
-            >
-              <td className="px-4 py-3">
-                <Link
-                  to="/capsules/$id"
-                  params={{ id: c.id }}
-                  className="font-medium hover:underline"
-                >
-                  {c.title}
-                </Link>
-              </td>
-              <td className="px-4 py-3 text-muted-foreground">{c.source_ai ?? "—"}</td>
-              <td className="px-4 py-3 text-muted-foreground">
-                {new Date(c.created_at).toLocaleDateString()}
-              </td>
-              <td className="px-4 py-3 text-muted-foreground">
-                {c.tokens_original.toLocaleString()} → {c.tokens_compressed.toLocaleString()}
-              </td>
-              <td className="px-4 py-3">
-                <span className="inline-flex items-center gap-1 rounded-full bg-white/5 px-2 py-0.5 text-xs">
-                  {c.is_public ? (
-                    <>
-                      <Globe className="h-3 w-3" /> Public
-                    </>
+          {capsules.map((c) => {
+            const isSelected = selected.has(c.id);
+            return (
+              <tr
+                key={c.id}
+                onClick={selectMode ? () => onToggle(c.id) : undefined}
+                className={`border-t border-white/5 transition-colors ${
+                  selectMode ? "cursor-pointer" : ""
+                } ${isSelected ? "bg-primary/10" : "hover:bg-white/5"}`}
+              >
+                {selectMode && (
+                  <td className="px-4 py-3">
+                    <div
+                      className={`flex h-5 w-5 items-center justify-center rounded border ${
+                        isSelected
+                          ? "border-primary bg-primary text-primary-foreground"
+                          : "border-white/20 bg-white/5"
+                      }`}
+                    >
+                      {isSelected && <Check className="h-3.5 w-3.5" />}
+                    </div>
+                  </td>
+                )}
+                <td className="px-4 py-3">
+                  {selectMode ? (
+                    <span className="font-medium">{c.title}</span>
                   ) : (
-                    <>
-                      <Lock className="h-3 w-3" /> Private
-                    </>
+                    <Link
+                      to="/capsules/$id"
+                      params={{ id: c.id }}
+                      className="font-medium hover:underline"
+                    >
+                      {c.title}
+                    </Link>
                   )}
-                </span>
-              </td>
-            </tr>
-          ))}
+                </td>
+                <td className="px-4 py-3 text-muted-foreground">{c.source_ai ?? "—"}</td>
+                <td className="px-4 py-3 text-muted-foreground">
+                  {new Date(c.created_at).toLocaleDateString()}
+                </td>
+                <td className="px-4 py-3 text-muted-foreground">
+                  {c.tokens_original.toLocaleString()} → {c.tokens_compressed.toLocaleString()}
+                </td>
+                <td className="px-4 py-3">
+                  <span className="inline-flex items-center gap-1 rounded-full bg-white/5 px-2 py-0.5 text-xs">
+                    {c.is_public ? (
+                      <>
+                        <Globe className="h-3 w-3" /> Public
+                      </>
+                    ) : (
+                      <>
+                        <Lock className="h-3 w-3" /> Private
+                      </>
+                    )}
+                  </span>
+                </td>
+              </tr>
+            );
+          })}
         </tbody>
       </table>
     </div>
