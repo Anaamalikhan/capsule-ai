@@ -11,13 +11,30 @@ import {
   Share2,
   Trash2,
   Check,
+  Pencil,
+  Clock,
+  Calendar,
 } from "lucide-react";
 import {
   deleteCapsule,
   getCapsule,
+  renameCapsule,
   toggleCapsuleShare,
   type StructuredCapsule,
 } from "@/lib/capsules.functions";
+
+function formatFullTimestamp(iso: string) {
+  const d = new Date(iso);
+  return d.toLocaleString(undefined, {
+    weekday: "long",
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  });
+}
 
 const opts = (id: string) =>
   queryOptions({
