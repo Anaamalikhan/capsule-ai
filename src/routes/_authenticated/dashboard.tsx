@@ -3,7 +3,7 @@ import { useSuspenseQuery, queryOptions, useQueryClient } from "@tanstack/react-
 import { useServerFn } from "@tanstack/react-start";
 import { Suspense, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { listCapsules, mergeCapsules } from "@/lib/capsules.functions";
+import { listCapsules, mergeCapsules, renameCapsule } from "@/lib/capsules.functions";
 import {
   Plus,
   Sparkles,
@@ -19,6 +19,7 @@ import {
   ChevronDown,
   X,
   Check,
+  Pencil,
 } from "lucide-react";
 
 const capsulesQuery = queryOptions({
