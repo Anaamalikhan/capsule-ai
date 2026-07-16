@@ -68,8 +68,27 @@ function Inner({ id }: { id: string }) {
   const structured = capsule.structured as unknown as StructuredCapsule;
   const del = useServerFn(deleteCapsule);
   const share = useServerFn(toggleCapsuleShare);
+  const rename = useServerFn(renameCapsule);
   const navigate = useNavigate();
   const [copied, setCopied] = useState(false);
+  const [renaming, setRenaming] = useState(false);
+
+  const onRename = async () => {
+    const next = window.prompt("Rename capsule", capsule.title);
+    if (next === null) return;
+    const trimmed = next.trim();
+    if (!trimmed || trimmed === capsule.title) return;
+    setRenaming(true);
+    try {
+      await rename({ data: { id: capsule.id, title: trimmed } });
+      toast.success("Capsule renamed");
+      await refetch();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Rename failed");
+    } finally {
+      setRenaming(false);
+    }
+  };
 
   const compression =
     capsule.tokens_original > 0
