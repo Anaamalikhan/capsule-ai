@@ -11,13 +11,30 @@ import {
   Share2,
   Trash2,
   Check,
+  Pencil,
+  Clock,
+  Calendar,
 } from "lucide-react";
 import {
   deleteCapsule,
   getCapsule,
+  renameCapsule,
   toggleCapsuleShare,
   type StructuredCapsule,
 } from "@/lib/capsules.functions";
+
+function formatFullTimestamp(iso: string) {
+  const d = new Date(iso);
+  return d.toLocaleString(undefined, {
+    weekday: "long",
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  });
+}
 
 const opts = (id: string) =>
   queryOptions({
@@ -51,8 +68,27 @@ function Inner({ id }: { id: string }) {
   const structured = capsule.structured as unknown as StructuredCapsule;
   const del = useServerFn(deleteCapsule);
   const share = useServerFn(toggleCapsuleShare);
+  const rename = useServerFn(renameCapsule);
   const navigate = useNavigate();
   const [copied, setCopied] = useState(false);
+  const [renaming, setRenaming] = useState(false);
+
+  const onRename = async () => {
+    const next = window.prompt("Rename capsule", capsule.title);
+    if (next === null) return;
+    const trimmed = next.trim();
+    if (!trimmed || trimmed === capsule.title) return;
+    setRenaming(true);
+    try {
+      await rename({ data: { id: capsule.id, title: trimmed } });
+      toast.success("Capsule renamed");
+      await refetch();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Rename failed");
+    } finally {
+      setRenaming(false);
+    }
+  };
 
   const compression =
     capsule.tokens_original > 0
@@ -126,21 +162,41 @@ function Inner({ id }: { id: string }) {
             {capsule.source_ai && (
               <span className="rounded-full bg-white/5 px-2 py-0.5">{capsule.source_ai}</span>
             )}
-            <span>
-              {new Date(capsule.created_at).toLocaleDateString(undefined, {
-                year: "numeric",
-                month: "long",
-                day: "numeric",
-              })}
-            </span>
             {capsule.is_public && (
               <span className="rounded-full bg-emerald-500/20 px-2 py-0.5 text-emerald-300">
                 Public
               </span>
             )}
           </div>
-          <h1 className="mt-2 text-3xl font-semibold tracking-tight">{capsule.title}</h1>
+          <div className="mt-2 flex flex-wrap items-start gap-3">
+            <h1 className="text-3xl font-semibold tracking-tight">{capsule.title}</h1>
+            <button
+              onClick={onRename}
+              disabled={renaming}
+              className="mt-1 inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-muted-foreground hover:bg-white/10 hover:text-foreground disabled:opacity-50"
+              title="Rename capsule"
+            >
+              {renaming ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Pencil className="h-3.5 w-3.5" />
+              )}
+              Rename
+            </button>
+          </div>
           <p className="mt-2 text-muted-foreground">{capsule.description}</p>
+          <div className="mt-3 flex flex-wrap gap-x-5 gap-y-1 text-xs text-muted-foreground">
+            <span className="inline-flex items-center gap-1.5">
+              <Calendar className="h-3.5 w-3.5" />
+              <span className="text-foreground/80">Created:</span>
+              {formatFullTimestamp(capsule.created_at)}
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <Clock className="h-3.5 w-3.5" />
+              <span className="text-foreground/80">Last modified:</span>
+              {formatFullTimestamp(capsule.updated_at ?? capsule.created_at)}
+            </span>
+          </div>
         </div>
       </div>
 
