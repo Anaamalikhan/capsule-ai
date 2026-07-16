@@ -582,3 +582,53 @@ function SkeletonBlock() {
     </div>
   );
 }
+
+function formatFullTimestamp(iso: string): string {
+  const d = new Date(iso);
+  return d.toLocaleString(undefined, {
+    weekday: "long",
+    day: "2-digit",
+    month: "long",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  });
+}
+
+function RenameButton({ id, currentTitle }: { id: string; currentTitle: string }) {
+  const renameFn = useServerFn(renameCapsule);
+  const queryClient = useQueryClient();
+  const [busy, setBusy] = useState(false);
+
+  const handleClick = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const next = window.prompt("Rename capsule", currentTitle);
+    if (next === null) return;
+    const trimmed = next.trim();
+    if (!trimmed || trimmed === currentTitle) return;
+    setBusy(true);
+    try {
+      await renameFn({ data: { id, title: trimmed.slice(0, 200) } });
+      await queryClient.invalidateQueries({ queryKey: ["capsules"] });
+      toast.success("Capsule renamed");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to rename");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <button
+      type="button"
+      onClick={handleClick}
+      disabled={busy}
+      title="Rename capsule"
+      className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-white/10 bg-white/5 text-muted-foreground opacity-0 transition hover:bg-white/10 hover:text-foreground group-hover:opacity-100 disabled:opacity-50"
+    >
+      {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Pencil className="h-3.5 w-3.5" />}
+    </button>
+  );
+}
