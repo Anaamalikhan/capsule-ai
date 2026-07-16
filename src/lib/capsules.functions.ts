@@ -249,6 +249,20 @@ export const toggleCapsuleShare = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+export const renameCapsule = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z.object({ id: z.string().uuid(), title: z.string().trim().min(1).max(200) }).parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { error } = await context.supabase
+      .from("capsules")
+      .update({ title: data.title })
+      .eq("id", data.id);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
 const MergeInput = z.object({
   ids: z.array(z.string().uuid()).min(2).max(6),
 });
