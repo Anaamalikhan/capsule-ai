@@ -3,7 +3,7 @@ import { useSuspenseQuery, queryOptions, useQueryClient } from "@tanstack/react-
 import { useServerFn } from "@tanstack/react-start";
 import { Suspense, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { listCapsules, mergeCapsules } from "@/lib/capsules.functions";
+import { listCapsules, mergeCapsules, renameCapsule } from "@/lib/capsules.functions";
 import {
   Plus,
   Sparkles,
@@ -19,6 +19,7 @@ import {
   ChevronDown,
   X,
   Check,
+  Pencil,
 } from "lucide-react";
 
 const capsulesQuery = queryOptions({
@@ -357,17 +358,45 @@ function GridView({
                 {isSelected && <Check className="h-4 w-4" />}
               </div>
             )}
-            <div className="pr-8 text-lg font-semibold line-clamp-1">{c.title}</div>
+            <div className="flex items-start justify-between gap-2">
+              <div className="pr-2 text-lg font-semibold line-clamp-1">{c.title}</div>
+              {!selectMode && <RenameButton id={c.id} currentTitle={c.title} />}
+            </div>
             <div className="mt-2 inline-flex items-center gap-2 text-xs text-muted-foreground">
               <Calendar className="h-3.5 w-3.5" />
-              {new Date(c.created_at).toLocaleDateString(undefined, {
-                month: "short",
-                day: "numeric",
-                year: "numeric",
-              })}
+              {formatFullTimestamp(c.created_at)}
             </div>
 
-            <div className="mt-5 space-y-3 border-t border-white/5 pt-4 text-sm">
+            <div className="mt-4 rounded-xl border border-white/10 bg-white/5 p-3">
+              <div className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                Token compression
+              </div>
+              <div className="mt-1 flex items-baseline justify-between gap-3">
+                <div>
+                  <div className="text-xs text-muted-foreground">Original</div>
+                  <div className="text-base font-semibold text-foreground">
+                    {c.tokens_original.toLocaleString()}
+                  </div>
+                </div>
+                <div className="text-muted-foreground">→</div>
+                <div className="text-right">
+                  <div className="text-xs text-muted-foreground">Compressed</div>
+                  <div className="text-base font-semibold text-primary">
+                    {c.tokens_compressed.toLocaleString()}
+                  </div>
+                </div>
+                <div className="text-right">
+                  <div className="text-xs text-muted-foreground">Saved</div>
+                  <div className="text-base font-semibold text-emerald-400">
+                    {c.tokens_original > 0
+                      ? `${Math.max(0, Math.round(((c.tokens_original - c.tokens_compressed) / c.tokens_original) * 100))}%`
+                      : "—"}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-4 space-y-3 border-t border-white/5 pt-4 text-sm">
               <Row label="Versions">
                 <span className="rounded-full bg-primary/20 px-2 py-0.5 text-xs font-semibold text-primary">
                   v1
@@ -392,6 +421,7 @@ function GridView({
                 </span>
               </Row>
             </div>
+
           </>
         );
 
@@ -488,11 +518,11 @@ function TableView({
                   )}
                 </td>
                 <td className="px-4 py-3 text-muted-foreground">{c.source_ai ?? "—"}</td>
+                <td className="px-4 py-3 text-muted-foreground">{formatFullTimestamp(c.created_at)}</td>
                 <td className="px-4 py-3 text-muted-foreground">
-                  {new Date(c.created_at).toLocaleDateString()}
-                </td>
-                <td className="px-4 py-3 text-muted-foreground">
-                  {c.tokens_original.toLocaleString()} → {c.tokens_compressed.toLocaleString()}
+                  <span className="text-foreground">{c.tokens_original.toLocaleString()}</span>
+                  {" → "}
+                  <span className="text-primary">{c.tokens_compressed.toLocaleString()}</span>
                 </td>
                 <td className="px-4 py-3">
                   <span className="inline-flex items-center gap-1 rounded-full bg-white/5 px-2 py-0.5 text-xs">
@@ -550,5 +580,55 @@ function SkeletonBlock() {
     <div className="flex items-center justify-center py-16 text-muted-foreground">
       <Loader2 className="h-5 w-5 animate-spin" />
     </div>
+  );
+}
+
+function formatFullTimestamp(iso: string): string {
+  const d = new Date(iso);
+  return d.toLocaleString(undefined, {
+    weekday: "long",
+    day: "2-digit",
+    month: "long",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  });
+}
+
+function RenameButton({ id, currentTitle }: { id: string; currentTitle: string }) {
+  const renameFn = useServerFn(renameCapsule);
+  const queryClient = useQueryClient();
+  const [busy, setBusy] = useState(false);
+
+  const handleClick = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const next = window.prompt("Rename capsule", currentTitle);
+    if (next === null) return;
+    const trimmed = next.trim();
+    if (!trimmed || trimmed === currentTitle) return;
+    setBusy(true);
+    try {
+      await renameFn({ data: { id, title: trimmed.slice(0, 200) } });
+      await queryClient.invalidateQueries({ queryKey: ["capsules"] });
+      toast.success("Capsule renamed");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to rename");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <button
+      type="button"
+      onClick={handleClick}
+      disabled={busy}
+      title="Rename capsule"
+      className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-white/10 bg-white/5 text-muted-foreground opacity-0 transition hover:bg-white/10 hover:text-foreground group-hover:opacity-100 disabled:opacity-50"
+    >
+      {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Pencil className="h-3.5 w-3.5" />}
+    </button>
   );
 }
