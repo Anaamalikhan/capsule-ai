@@ -358,17 +358,45 @@ function GridView({
                 {isSelected && <Check className="h-4 w-4" />}
               </div>
             )}
-            <div className="pr-8 text-lg font-semibold line-clamp-1">{c.title}</div>
+            <div className="flex items-start justify-between gap-2">
+              <div className="pr-2 text-lg font-semibold line-clamp-1">{c.title}</div>
+              {!selectMode && <RenameButton id={c.id} currentTitle={c.title} />}
+            </div>
             <div className="mt-2 inline-flex items-center gap-2 text-xs text-muted-foreground">
               <Calendar className="h-3.5 w-3.5" />
-              {new Date(c.created_at).toLocaleDateString(undefined, {
-                month: "short",
-                day: "numeric",
-                year: "numeric",
-              })}
+              {formatFullTimestamp(c.created_at)}
             </div>
 
-            <div className="mt-5 space-y-3 border-t border-white/5 pt-4 text-sm">
+            <div className="mt-4 rounded-xl border border-white/10 bg-white/5 p-3">
+              <div className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                Token compression
+              </div>
+              <div className="mt-1 flex items-baseline justify-between gap-3">
+                <div>
+                  <div className="text-xs text-muted-foreground">Original</div>
+                  <div className="text-base font-semibold text-foreground">
+                    {c.tokens_original.toLocaleString()}
+                  </div>
+                </div>
+                <div className="text-muted-foreground">→</div>
+                <div className="text-right">
+                  <div className="text-xs text-muted-foreground">Compressed</div>
+                  <div className="text-base font-semibold text-primary">
+                    {c.tokens_compressed.toLocaleString()}
+                  </div>
+                </div>
+                <div className="text-right">
+                  <div className="text-xs text-muted-foreground">Saved</div>
+                  <div className="text-base font-semibold text-emerald-400">
+                    {c.tokens_original > 0
+                      ? `${Math.max(0, Math.round(((c.tokens_original - c.tokens_compressed) / c.tokens_original) * 100))}%`
+                      : "—"}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-4 space-y-3 border-t border-white/5 pt-4 text-sm">
               <Row label="Versions">
                 <span className="rounded-full bg-primary/20 px-2 py-0.5 text-xs font-semibold text-primary">
                   v1
@@ -393,6 +421,7 @@ function GridView({
                 </span>
               </Row>
             </div>
+
           </>
         );
 
