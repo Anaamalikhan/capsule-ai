@@ -518,11 +518,11 @@ function TableView({
                   )}
                 </td>
                 <td className="px-4 py-3 text-muted-foreground">{c.source_ai ?? "—"}</td>
+                <td className="px-4 py-3 text-muted-foreground">{formatFullTimestamp(c.created_at)}</td>
                 <td className="px-4 py-3 text-muted-foreground">
-                  {new Date(c.created_at).toLocaleDateString()}
-                </td>
-                <td className="px-4 py-3 text-muted-foreground">
-                  {c.tokens_original.toLocaleString()} → {c.tokens_compressed.toLocaleString()}
+                  <span className="text-foreground">{c.tokens_original.toLocaleString()}</span>
+                  {" → "}
+                  <span className="text-primary">{c.tokens_compressed.toLocaleString()}</span>
                 </td>
                 <td className="px-4 py-3">
                   <span className="inline-flex items-center gap-1 rounded-full bg-white/5 px-2 py-0.5 text-xs">
